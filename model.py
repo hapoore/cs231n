@@ -9,7 +9,7 @@ import keras
 def encode_frames_resnet(X):
     (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
     flattened = tf.reshape(X, (-1, height, width, n_channels))
-    resnet = keras.applications.ResNet50(include_top=False, 
+    resnet = keras.applications.VGG16(include_top=False, 
         weights='imagenet', input_tensor=flattened, input_shape=(270, 270, 3), pooling=None)
     out_chans = resnet.output.get_shape().as_list()[3]
     reshaped_out = tf.reshape(resnet.output, (-1, n_frames, out_chans))
@@ -27,6 +27,7 @@ def decode_frames_avg_pool(frames):
 
 
 def simple_model(X):
+    keras.layers.core.K.set_learning_phase(1)
     frames = encode_frames_resnet(X)
     y_pred = decode_frames_avg_pool(frames)
     return y_pred
