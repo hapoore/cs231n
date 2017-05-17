@@ -9,7 +9,7 @@ import keras
 def encode_frames_resnet(X):
     (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
     flattened = tf.reshape(X, (-1, height, width, n_channels))
-    resnet = keras.applications.VGG16(include_top=False, 
+    resnet = keras.applications.ResNet50(include_top=False, 
         weights='imagenet', input_tensor=flattened, input_shape=(270, 270, 3), pooling=None)
     out_chans = resnet.output.get_shape().as_list()[3]
     reshaped_out = tf.reshape(resnet.output, (-1, n_frames, out_chans))
@@ -25,12 +25,33 @@ def decode_frames_avg_pool(frames):
         biases_initializer=tf.constant_initializer(0.0), trainable=True)
     return y_pred
 
-
-def simple_model(X):
+def resnet_avgpool(X):
     keras.layers.core.K.set_learning_phase(1)
     frames = encode_frames_resnet(X)
     y_pred = decode_frames_avg_pool(frames)
     return y_pred
+
+def encode_frames_simple_conv(X):
+    (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
+    flattened = tf.reshape(X, (-1, height, width, n_channels))
+    Wconv1 = tf.get_variable("Wconv1", shape=[7, 7, 3, 32])
+    bconv1 = tf.get_variable("bconv1", shape=[32])
+    a1 = tf.nn.conv2d(flattened, Wconv1, strides=[1,2,2,1], padding='SAME') + bconv1
+    h1 = tf.nn.relu(a1)
+    Wconv2 = tf.get_variable("Wconv2", shape=[3, 3, 32, 32])
+    bconv2 = tf.get_variable("bconv2", shape=[32])
+    a2 = tf.nn.conv2d(h1, Wconv2, strides=[1,2,2,1], padding='SAME') + bconv2
+    h2 = tf.nn.relu(a2)
+    (_, h_out, w_out, c_out) = h2.get_shape().as_list()
+    reshaped_out = tf.reshape(h2, (-1, n_frames, h_out*w_out*c_out))
+    return reshaped_out
+
+
+def simple_model(X):
+    frames = encode_frames_simple_conv(X)
+    y_pred = decode_frames_avg_pool(frames)
+    return y_pred
+
 
 if __name__ == "__main__":
     X = tf.placeholder(tf.float32, [None, 10, 270, 270, 3])

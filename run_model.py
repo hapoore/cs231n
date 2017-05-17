@@ -34,11 +34,11 @@ def read_csv(filename):
     return classes, class_to_number, number_to_class, filenames
     
 def get_batch_frames(filenames, batch_size, train_indices,
-                     number_to_class, classes, batch_num, num_frames, crop_dim):
+                     number_to_class, classes, batch_num, num_frames, crop_dim, mean_img=None):
     # generate indices for the batch
     start_idx = (batch_num*batch_size)%len(filenames)
     idx = train_indices[start_idx:start_idx+batch_size]
-    print(idx)
+    #print(idx)
     #per-batch vars
     batch_frames = []
     batch_labels = []
@@ -48,9 +48,9 @@ def get_batch_frames(filenames, batch_size, train_indices,
                     + '/' + filenames[j])
         cap = cv2.VideoCapture(filepath)
         ret, frame = cap.read()
-        print(filepath)
+        #print(filepath)
         frame_count = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
-        print(frame_count)
+        #print(frame_count)
         interval = int(math.floor(frame_count/num_frames))
         frames = []
         success = True
@@ -65,7 +65,8 @@ def get_batch_frames(filenames, batch_size, train_indices,
                 vert_indent = int(math.ceil((height - crop_dim)/2))
                 horiz_indent = int(math.ceil((width - crop_dim)/2))
                 frame = frame[vert_indent:vert_indent+crop_dim, 
-                              horiz_indent:horiz_indent+crop_dim, :]
+                              horiz_indent:horiz_indent+crop_dim, :]  
+                frame = frame.astype('float32') / 256   
                 frames.append(frame)
             else:
                 print("Problem reading frame from file " + filenames[j])
@@ -78,6 +79,8 @@ def get_batch_frames(filenames, batch_size, train_indices,
             batch_frames.append(frames)
             
     np_batch_frames = np.asarray(batch_frames)
+    if mean_img is not None:
+        np_batch_frames -= mean_img
     np_batch_labels = np.asarray(batch_labels)
     actual_batch_size = len(batch_frames)
     print(np_batch_frames.shape)
@@ -91,6 +94,7 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
               epochs=1, batch_size=64, print_every=100,
               training=None, plot_losses=False, crop_dim=270, num_frames=10):
     # have tensorflow compute accuracy
+    predicted_class = tf.argmax(predict,1)
     correct_prediction = tf.equal(tf.argmax(predict,1), y)
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     
@@ -106,6 +110,17 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
     if training_now:
         variables[-1] = training
 
+    mean_imgs = np.zeros((int(math.ceil(len(filenames)/batch_size)), crop_dim, crop_dim, 3))
+
+    print('computing mean image')
+    for i in range(int(math.ceil(len(filenames)/batch_size))):
+        np_batch_frames, np_batch_labels, actual_batch_size = (
+            get_batch_frames(filenames, batch_size, train_indices,
+                             number_to_class, classes, i, num_frames, crop_dim))
+        mean_imgs[i] = np.mean(np_batch_frames, axis=(0,1))
+    mean_img = np.mean(mean_imgs, axis=0)
+    print('finished computing mean image')
+
     # counter 
     iter_cnt = 0
     for e in range(epochs):
@@ -114,12 +129,12 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
         losses = []
 
         # make sure we iterate over the dataset once
-        print(len(filenames))
-        print(int(math.ceil(len(filenames)/batch_size)))
+        #print(len(filenames))
+        #print(int(math.ceil(len(filenames)/batch_size)))
         for i in range(int(math.ceil(len(filenames)/batch_size))):
             np_batch_frames, np_batch_labels, actual_batch_size = (
                 get_batch_frames(filenames, batch_size, train_indices,
-                                 number_to_class, classes, i, num_frames, crop_dim))
+                                 number_to_class, classes, i, num_frames, crop_dim, mean_img=mean_img))
 
             # create a feed dictionary for this batch
             feed_dict = {X: np_batch_frames,
@@ -129,6 +144,11 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
             # have tensorflow compute loss and correct predictions
             # and (if given) perform a training step
             loss, corr, ret_optimizer = session.run(variables,feed_dict=feed_dict)
+            loss, corr, ret_optimizer, y_pred, class_pred = session.run([mean_loss,correct_prediction,training, predict, predicted_class],feed_dict=feed_dict)
+            print('y_pred', y_pred)
+            print('real labels', np_batch_labels)
+
+            print('predicted class', class_pred)
             #print(ret_optimizer)
             # aggregate performance stats
             losses.append(loss*actual_batch_size)
@@ -161,7 +181,7 @@ is_training = tf.placeholder(tf.bool)
 y_pred = model.simple_model(X)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
-optimizer = tf.train.AdamOptimizer(1e-2)
+optimizer = tf.train.AdamOptimizer(1e-4)
 train_step = optimizer.minimize(mean_loss)
 with tf.Session() as sess:
     with tf.device("/cpu:0"): #"/cpu:0" or "/gpu:0"
@@ -171,7 +191,7 @@ with tf.Session() as sess:
         print(num_params)
         print('Training')
         run_model(sess,y_pred,mean_loss,filenames,classes,
-                  number_to_class,5,2,1,train_step,True)
+                  number_to_class,20,2,1,train_step,True)
         
         #print('Validation')
         #run_model(sess,y_pred,mean_loss,X_val,y_val,1,64)
