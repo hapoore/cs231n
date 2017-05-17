@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import csv
 import model
 import random
+import os.path
 
 def read_csv(filename, num_train, num_val):
     classes = {}
@@ -97,7 +98,7 @@ def get_batch_frames(filenames, batch_size, train_indices,
 
 def run_model(session, predict, loss_val, filenames, classes, number_to_class,
               epochs=1, batch_size=64, print_every=100,
-              training=None, plot_losses=False, crop_dim=270, num_frames=10, frame_tensor=None, before_relu=None):
+              training=None, plot_losses=False, crop_dim=270, num_frames=10, mean_img=None):
     # have tensorflow compute accuracy
     predicted_class = tf.argmax(predict,1)
     correct_prediction = tf.equal(tf.argmax(predict,1), y)
@@ -115,16 +116,6 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
     if training_now:
         variables[-1] = training
 
-    mean_imgs = np.zeros((int(math.ceil(len(filenames)/batch_size)), crop_dim, crop_dim, 3))
-
-    print('computing mean image')
-    for i in range(int(math.ceil(len(filenames)/batch_size))):
-        np_batch_frames, np_batch_labels, actual_batch_size = (
-            get_batch_frames(filenames, batch_size, train_indices,
-                             number_to_class, classes, i, num_frames, crop_dim))
-        mean_imgs[i] = np.mean(np_batch_frames, axis=(0,1))
-    mean_img = np.mean(mean_imgs, axis=0)
-    print('finished computing mean image')
 
     # counter 
     iter_cnt = 0
@@ -197,9 +188,26 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
         #     plt.show()
     return total_loss,total_correct
 
+def compute_mean_img(filenames, crop_dim, classes, number_to_class):
+    if os.path.exists('mean_img.npy'):
+        return np.load('mean_img.npy')
+    else:
+        batch_size = 64
+        mean_imgs = np.zeros((int(math.ceil(len(filenames)/batch_size)), crop_dim, crop_dim, 3))
+        print('computing mean image')
+        for i in range(int(math.ceil(len(filenames)/batch_size))):
+            np_batch_frames, np_batch_labels, actual_batch_size = (
+                get_batch_frames(filenames, batch_size, np.arange(len(filenames)),
+                                 number_to_class, classes, i, num_frames, crop_dim))
+            mean_imgs[i] = np.mean(np_batch_frames, axis=(0,1))
+        mean_img = np.mean(mean_imgs, axis=0)
+        print('finished computing mean image')
+        np.save('mean_img.npy', mean_img)
+        return mean_img
 
 #def main():
 classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test = read_csv('../SVW/SVW.csv', 3400, 300)
+mean_img = compute_mean_img(filenames_train, 270, classes, number_to_class)
 X = tf.placeholder(tf.float32, [None, 10, 270, 270, 3])
 y = tf.placeholder(tf.int64, [None])
 is_training = tf.placeholder(tf.bool)
@@ -216,11 +224,11 @@ with tf.Session() as sess:
         print(num_params)
         print('Training')
         run_model(sess,y_pred,mean_loss,filenames_train,classes,
-                  number_to_class,1,64,64,train_step,True)
+                  number_to_class,1,64,64,train_step,True, mean_img=mean_img)
         
         print('Validation')
         run_model(sess,y_pred,mean_loss,filenames_val,classes,
-                  number_to_class,1,64)
+                  number_to_class,1,64, mean_img=mean_img)
         
         
 #        session, predict, loss_val, filenames, classes, number_to_class,
