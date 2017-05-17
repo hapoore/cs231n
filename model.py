@@ -20,10 +20,16 @@ def encode_frames_resnet(X):
 """
 def decode_frames_avg_pool(frames):
     avg = tf.reduce_mean(frames, axis=1)
-    y_pred = tf.contrib.layers.fully_connected(inputs=avg, num_outputs=30, 
-        activation_fn=tf.nn.relu, weights_initializer=tf.contrib.layers.xavier_initializer(),
-        biases_initializer=tf.constant_initializer(0.0), trainable=True)
-    return y_pred
+    W1 = tf.get_variable("W1", shape=[avg.get_shape().as_list()[1], 30],
+        initializer=tf.contrib.layers.xavier_initializer())
+    b1 = tf.get_variable("b1", shape=[30], initializer=tf.constant_initializer(0.0))
+    a = tf.matmul(avg, W1) + b1
+    #y_pred = tf.nn.relu(a)
+    y_pred = a
+    # y_pred = tf.contrib.layers.fully_connected(inputs=avg, num_outputs=30, 
+    #     activation_fn=tf.nn.relu, weights_initializer=tf.contrib.layers.xavier_initializer(),
+    #     biases_initializer=tf.constant_initializer(0.0), trainable=True)
+    return y_pred, a
 
 def resnet_avgpool(X):
     keras.layers.core.K.set_learning_phase(1)
@@ -34,12 +40,12 @@ def resnet_avgpool(X):
 def encode_frames_simple_conv(X):
     (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
     flattened = tf.reshape(X, (-1, height, width, n_channels))
-    Wconv1 = tf.get_variable("Wconv1", shape=[7, 7, 3, 32])
-    bconv1 = tf.get_variable("bconv1", shape=[32])
+    Wconv1 = tf.get_variable("Wconv1", shape=[7, 7, 3, 32], initializer=tf.contrib.layers.xavier_initializer())
+    bconv1 = tf.get_variable("bconv1", shape=[32], initializer=tf.constant_initializer(0.0))
     a1 = tf.nn.conv2d(flattened, Wconv1, strides=[1,2,2,1], padding='SAME') + bconv1
     h1 = tf.nn.relu(a1)
-    Wconv2 = tf.get_variable("Wconv2", shape=[3, 3, 32, 32])
-    bconv2 = tf.get_variable("bconv2", shape=[32])
+    Wconv2 = tf.get_variable("Wconv2", shape=[3, 3, 32, 32], initializer=tf.contrib.layers.xavier_initializer())
+    bconv2 = tf.get_variable("bconv2", shape=[32], initializer=tf.constant_initializer(0.0))
     a2 = tf.nn.conv2d(h1, Wconv2, strides=[1,2,2,1], padding='SAME') + bconv2
     h2 = tf.nn.relu(a2)
     (_, h_out, w_out, c_out) = h2.get_shape().as_list()
@@ -49,8 +55,8 @@ def encode_frames_simple_conv(X):
 
 def simple_model(X):
     frames = encode_frames_simple_conv(X)
-    y_pred = decode_frames_avg_pool(frames)
-    return y_pred
+    y_pred, before_relu = decode_frames_avg_pool(frames)
+    return y_pred, frames, before_relu
 
 
 if __name__ == "__main__":
