@@ -6,13 +6,16 @@ import timeit
 import matplotlib.pyplot as plt
 import csv
 import model
+import random
 
-def read_csv(filename):
+def read_csv(filename, num_train, num_val):
     classes = {}
     class_to_number = {}
     number_to_class = {}
     unique_genres = set()
     filenames = []
+    
+    random.seed(12345)
     
     with open(filename, 'rU') as csvfile:
         vidreader = csv.DictReader(csvfile)
@@ -30,8 +33,13 @@ def read_csv(filename):
         vidreader = csv.DictReader(csvfile)
         for row in vidreader:
             classes[row['FileName']] = class_to_number[row['Genre']]
-            
-    return classes, class_to_number, number_to_class, filenames
+
+    random.shuffle(filenames)
+    print(len(filenames))
+    filenames_train = filenames[:num_train]
+    filenames_val = filenames[num_train:num_train+num_val]
+    filenames_test = filenames[num_train + num_val:]
+    return classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test
     
 def get_batch_frames(filenames, batch_size, train_indices,
                      number_to_class, classes, batch_num, num_frames, crop_dim, mean_img=None):
@@ -191,7 +199,7 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
 
 
 #def main():
-classes, class_to_number, number_to_class, filenames = read_csv('../SVW/SVW_mini.csv')
+classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test = read_csv('../SVW/SVW.csv', 3400, 300)
 X = tf.placeholder(tf.float32, [None, 10, 270, 270, 3])
 y = tf.placeholder(tf.int64, [None])
 is_training = tf.placeholder(tf.bool)
@@ -207,11 +215,12 @@ with tf.Session() as sess:
         num_params = sum(map(lambda t: np.prod(tf.shape(t.value()).eval()), params))
         print(num_params)
         print('Training')
-        run_model(sess,y_pred,mean_loss,filenames,classes,
-                  number_to_class,20,2,1,train_step,True, frame_tensor=frames, before_relu=before_relu)
+        run_model(sess,y_pred,mean_loss,filenames_train,classes,
+                  number_to_class,1,64,64,train_step,True)
         
-        #print('Validation')
-        #run_model(sess,y_pred,mean_loss,X_val,y_val,1,64)
+        print('Validation')
+        run_model(sess,y_pred,mean_loss,filenames_val,classes,
+                  number_to_class,1,64)
         
         
 #        session, predict, loss_val, filenames, classes, number_to_class,
