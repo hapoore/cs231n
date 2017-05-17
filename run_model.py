@@ -87,9 +87,6 @@ def get_batch_frames(filenames, batch_size, train_indices,
     print(np_batch_labels)
     return np_batch_frames, np_batch_labels, actual_batch_size
 
-#def run_model(session, predict, loss_val, filenames, classes,
-#              number_to_class, epochs=1, batch_size=64, print_every=100,
-#              training=None, plot_losses=False, crop_dim=270, num_frames=10):
 def run_model(session, predict, loss_val, filenames, classes, number_to_class,
               epochs=1, batch_size=64, print_every=100,
               training=None, plot_losses=False, crop_dim=270, num_frames=10):
@@ -143,7 +140,7 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
 
             # have tensorflow compute loss and correct predictions
             # and (if given) perform a training step
-            loss, corr, ret_optimizer = session.run(variables,feed_dict=feed_dict)
+            # loss, corr, ret_optimizer = session.run(variables,feed_dict=feed_dict)
             loss, corr, ret_optimizer, y_pred, class_pred = session.run([mean_loss,correct_prediction,training, predict, predicted_class],feed_dict=feed_dict)
             print('y_pred', y_pred)
             print('real labels', np_batch_labels)
