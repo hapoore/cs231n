@@ -175,7 +175,7 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
             print("Iteration {0}: with minibatch training loss = {1:.3g} and accuracy of {2:.2g}"\
                   .format(iter_cnt,loss,np.sum(corr)/float(actual_batch_size)))
             iter_cnt += 1
-        total_correct = correct/len(filenames)
+        total_correct = correct/float(len(filenames))
         total_loss = np.sum(losses)/len(filenames)
         print("Epoch {2}, Overall loss = {0:.3g} and accuracy of {1:.3g}"\
               .format(total_loss,total_correct,e+1))
