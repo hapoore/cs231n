@@ -29,7 +29,7 @@ def read_csv(filename, num_train, num_val):
         class_to_number[genre] = counter
         number_to_class[counter] = genre
         counter += 1
-    print(class_to_number)
+#    print(class_to_number)
             
     with open(filename, 'rU') as csvfile:
         vidreader = csv.DictReader(csvfile)
@@ -37,7 +37,7 @@ def read_csv(filename, num_train, num_val):
             classes[row['FileName']] = class_to_number[row['Genre']]
 
     random.shuffle(filenames)
-    print(len(filenames))
+#    print(len(filenames))
     filenames_train = filenames[:num_train]
     filenames_val = filenames[num_train:num_train+num_val]
     filenames_test = filenames[num_train + num_val:]
@@ -46,7 +46,7 @@ def read_csv(filename, num_train, num_val):
 def get_batch_frames(filenames, batch_size, train_indices,
                      number_to_class, classes, batch_num, num_frames, crop_dim, mean_img=None):
     # generate indices for the batch
-    print('starting read files')
+#    print('starting read files')
     start_idx = (batch_num*batch_size)%len(filenames)
     idx = train_indices[start_idx:start_idx+batch_size]
     #print(idx)
@@ -96,7 +96,7 @@ def get_batch_frames(filenames, batch_size, train_indices,
     actual_batch_size = len(batch_frames)
     # print(np_batch_frames.shape)
     # print(np_batch_labels)
-    print('files read')
+#    print('files read')
     return np_batch_frames, np_batch_labels, actual_batch_size
 
 def run_model(session, predict, loss_val, filenames, classes, number_to_class,
@@ -162,9 +162,9 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
                 loss, corr, acc, y_pred, class_pred = session.run([mean_loss,correct_prediction,accuracy, predict, predicted_class],feed_dict=feed_dict)
             print('session done running')
             #print('y_pred', y_pred)
-            print('real labels', np_batch_labels)
+#            print('real labels', np_batch_labels)
 
-            print('predicted class', class_pred)
+ #           print('predicted class', class_pred)
             #print(ret_optimizer)
             # aggregate performance stats
             losses.append(loss*actual_batch_size)
@@ -221,7 +221,7 @@ with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         params = tf.trainable_variables()
         num_params = sum(map(lambda t: np.prod(tf.shape(t.value()).eval()), params))
-        print(num_params)
+#        print(num_params)
         print('Training')
         for i in range(5):
             print('starting Epoch ', i+1)

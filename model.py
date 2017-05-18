@@ -44,12 +44,14 @@ def encode_frames_simple_conv(X):
     bconv1 = tf.get_variable("bconv1", shape=[32], initializer=tf.constant_initializer(0.0))
     a1 = tf.nn.conv2d(flattened, Wconv1, strides=[1,2,2,1], padding='SAME') + bconv1
     h1 = tf.nn.relu(a1)
+    batchnorm1 = tf.contrib.layers.batch_norm(h1, .9, True, True, 1e-8)
     Wconv2 = tf.get_variable("Wconv2", shape=[3, 3, 32, 32], initializer=tf.contrib.layers.xavier_initializer())
     bconv2 = tf.get_variable("bconv2", shape=[32], initializer=tf.constant_initializer(0.0))
-    a2 = tf.nn.conv2d(h1, Wconv2, strides=[1,2,2,1], padding='SAME') + bconv2
+    a2 = tf.nn.conv2d(batchnorm1, Wconv2, strides=[1,2,2,1], padding='SAME') + bconv2
     h2 = tf.nn.relu(a2)
-    (_, h_out, w_out, c_out) = h2.get_shape().as_list()
-    reshaped_out = tf.reshape(h2, (-1, n_frames, h_out*w_out*c_out))
+    batchnorm2 = tf.contrib.layers.batch_norm(h2, .9, True, True, 1e-8)
+    (_, h_out, w_out, c_out) = batchnorm2.get_shape().as_list()
+    reshaped_out = tf.reshape(batchnorm2, (-1, n_frames, h_out*w_out*c_out))
     return reshaped_out
 
 
