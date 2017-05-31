@@ -1,0 +1,19 @@
+import subprocess as sp
+import os
+
+root_dir = './SVW/Videos'
+output_dir = './output_frames'
+
+for sport_dir in os.listdir(root_dir):
+    print(sport_dir)
+    for filename in os.listdir(root_dir + '/' + sport_dir):
+        if filename.endswith(".mp4"):
+            directory = output_dir + '/' + sport_dir + '/' + filename.split('.')[0]
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+                command = [ "ffmpeg", '-i', root_dir + '/' + sport_dir + '/' + filename,
+                            '-vf', 'fps=10', directory + '/frame%d.jpg',
+                            '-hide_banner']
+                
+                sp.call(command)
+                

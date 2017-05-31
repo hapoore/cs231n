@@ -1,4 +1,3 @@
-import cv2
 import tensorflow as tf
 import numpy as np
 import math
@@ -8,6 +7,8 @@ import csv
 import model
 import random
 import os.path
+import os
+from scipy.misc import imread
 
 def read_csv(filename, num_train, num_val):
     classes = {}
@@ -29,7 +30,7 @@ def read_csv(filename, num_train, num_val):
         class_to_number[genre] = counter
         number_to_class[counter] = genre
         counter += 1
-#    print(class_to_number)
+    print(class_to_number)
             
     with open(filename, 'rU') as csvfile:
         vidreader = csv.DictReader(csvfile)
@@ -55,39 +56,59 @@ def get_batch_frames(filenames, batch_size, train_indices,
     batch_labels = []
     
     for j in idx:
-        filepath = ('../SVW/Videos/' + number_to_class[classes[filenames[j]]]
-                    + '/' + filenames[j])
-        cap = cv2.VideoCapture(filepath)
-        ret, frame = cap.read()
-        #print(filepath)
-        frame_count = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
-        #print(frame_count)
-        interval = int(math.floor(frame_count/num_frames))
+
+        directory = ('../output_frames/' + number_to_class[classes[filenames[j]]]
+                    + '/' + filenames[j].split('.')[0])
+        total_frames = len([name for name in os.listdir(directory) if os.path.isfile(name)])
+        interval = int(math.floor(total_frames/num_frames))
         frames = []
-        success = True
         for frame_number in range(num_frames):
-            cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, interval*frame_number)
+            frame_path = directory + '/frame' + str(interval*frame_number+1) + '.jpg'
+            frame = imread(frame_path)
+            height = frame.shape[0]
+            width = frame.shape[1]
+            vert_indent = int(math.ceil((height - crop_dim)/2))
+            horiz_indent = int(math.ceil((width - crop_dim)/2))
+            frame = frame[vert_indent:vert_indent+crop_dim, 
+                          horiz_indent:horiz_indent+crop_dim, :]  
+            frame = frame.astype('float32') / 256   
+            frames.append(frame)
+        batch_labels.append(classes[filenames[j]])
+        batch_frames.append(frames)
+        
+#        filepath = ('../SVW/Videos/' + number_to_class[classes[filenames[j]]]
+#                    + '/' + filenames[j])
+#        cap = cv2.VideoCapture(filepath)
+#        ret, frame = cap.read()
+#        #print(filepath)
+#        frame_count = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+#        #print(frame_count)
+#        interval = int(math.floor(frame_count/num_frames))
+#        frames = []
+#        success = True
+#        for frame_number in range(num_frames):
+#            cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, interval*frame_number)
             # Capture frame-by-frame
-            ret, frame = cap.read()
-            if ret:
-                # Crop the current frame
-                height = frame.shape[0]
-                width = frame.shape[1]
-                vert_indent = int(math.ceil((height - crop_dim)/2))
-                horiz_indent = int(math.ceil((width - crop_dim)/2))
-                frame = frame[vert_indent:vert_indent+crop_dim, 
-                              horiz_indent:horiz_indent+crop_dim, :]  
-                frame = frame.astype('float32') / 256   
-                frames.append(frame)
-            else:
-                print("Problem reading frame from file " + filenames[j])
-                success = False
+#            ret, frame = cap.read()
+#            if ret:
+#                # Crop the current frame
+#                height = frame.shape[0]
+#                width = frame.shape[1]
+#                vert_indent = int(math.ceil((height - crop_dim)/2))
+#                horiz_indent = int(math.ceil((width - crop_dim)/2))
+#                frame = frame[vert_indent:vert_indent+crop_dim, 
+#                              horiz_indent:horiz_indent+crop_dim, :]  
+#                frame = frame.astype('float32') / 256   
+#                frames.append(frame)
+#            else:
+#                print("Problem reading frame from file " + filenames[j])
+#                success = False
                 
                 # When everything done, release the capture
-        cap.release()
-        if success:
-            batch_labels.append(classes[filenames[j]])
-            batch_frames.append(frames)
+#        cap.release()
+#        if success:
+#batch_labels.append(classes[filenames[j]])
+#batch_frames.append(frames)
             
     np_batch_frames = np.asarray(batch_frames)
     if mean_img is not None:
@@ -206,7 +227,7 @@ def compute_mean_img(filenames, crop_dim, classes, number_to_class, num_frames):
         return mean_img
 
 #def main():
-classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test = read_csv('../SVW/SVW.csv', 3400, 300)
+classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test = read_csv('SVW.csv', 3400, 300)
 mean_img = compute_mean_img(filenames_train, 270, classes, number_to_class, 10)
 X = tf.placeholder(tf.float32, [None, 10, 270, 270, 3])
 y = tf.placeholder(tf.int64, [None])
