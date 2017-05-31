@@ -5,6 +5,7 @@ import timeit
 import matplotlib.pyplot as plt
 import csv
 import model
+import conv_model_3d
 import random
 import os.path
 import os
@@ -232,10 +233,10 @@ mean_img = compute_mean_img(filenames_train, 270, classes, number_to_class, 10)
 X = tf.placeholder(tf.float32, [None, 10, 270, 270, 3])
 y = tf.placeholder(tf.int64, [None])
 is_training = tf.placeholder(tf.bool)
-y_pred, frames, before_relu = model.simple_model(X)
+y_pred, frames, before_relu = conv_model_3d.simple_model(X)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
-optimizer = tf.train.AdamOptimizer(1e-4)
+optimizer = tf.train.AdamOptimizer(1e-3)
 train_step = optimizer.minimize(mean_loss)
 with tf.Session() as sess:
     with tf.device("/cpu:0"): #"/cpu:0" or "/gpu:0"
