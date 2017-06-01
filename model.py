@@ -23,13 +23,8 @@ def decode_frames_avg_pool(frames):
     W1 = tf.get_variable("W1", shape=[avg.get_shape().as_list()[1], 30],
         initializer=tf.contrib.layers.xavier_initializer())
     b1 = tf.get_variable("b1", shape=[30], initializer=tf.constant_initializer(0.0))
-    a = tf.matmul(avg, W1) + b1
-    #y_pred = tf.nn.relu(a)
-    y_pred = a
-    # y_pred = tf.contrib.layers.fully_connected(inputs=avg, num_outputs=30, 
-    #     activation_fn=tf.nn.relu, weights_initializer=tf.contrib.layers.xavier_initializer(),
-    #     biases_initializer=tf.constant_initializer(0.0), trainable=True)
-    return y_pred, a
+    y_pred = tf.matmul(avg, W1) + b1
+    return y_pred
 
 def decode_frames_max_pool(frames):
     avg = tf.reduce_max(frames, axis=1)
@@ -58,6 +53,21 @@ def encode_frames_simple_conv(X):
     a2 = tf.nn.conv2d(batchnorm1, Wconv2, strides=[1,2,2,1], padding='SAME') + bconv2
     h2 = tf.nn.relu(a2)
     batchnorm2 = tf.contrib.layers.batch_norm(h2, .9, True, True, 1e-8)
+    (_, h_out, w_out, c_out) = batchnorm2.get_shape().as_list()
+    reshaped_out = tf.reshape(batchnorm2, (-1, n_frames, h_out*w_out*c_out))
+    return reshaped_out
+
+def encode_frames_conv(X, is_training):
+    (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
+    flattened = tf.reshape(X, (-1, height, width, n_channels))
+    a1 = tf.layers.conv2d(flattened, 32, 7, strides=2)
+    batchnorm1 = tf.contrib.layers.batch_norm(a1, .9, True, True, 1e-8)
+    h1 = tf.nn.relu(batchnorm1)
+    drop1 = tf.layers.dropout(h1, 0.25, training=is_training)
+    a2 = tf.layers.conv2d(drop1, 32, 3, strides=2)
+    batchnorm2 = tf.contrib.layers.batch_norm(a2, .9, True, True, 1e-8)
+    h2 = tf.nn.relu(batchnorm2)
+    drop2 = tf.layers.dropout(h2, 0.25, training=is_training)
     (_, h_out, w_out, c_out) = batchnorm2.get_shape().as_list()
     reshaped_out = tf.reshape(batchnorm2, (-1, n_frames, h_out*w_out*c_out))
     return reshaped_out
@@ -98,7 +108,7 @@ def encode_frames_simple_resnet(X, is_training):
     flattened = tf.reshape(X, (-1, height, width, n_channels))
     out = conv_norm(flattened, 3, 32, 7, 2, "conv1", is_training)
     out = tf.nn.relu(out)
-    n = 3
+    n = 1
     for i in range(n-1):
         out = res_block(out, 32, 32, "res32_" + str(i), is_training)
     out = res_block(out, 32, 64, "res32_final", is_training)
@@ -113,12 +123,17 @@ def encode_frames_simple_resnet(X, is_training):
 
 def simple_model(X):
     frames = encode_frames_simple_conv(X)
-    y_pred, before_relu = decode_frames_avg_pool(frames)
-    return y_pred, frames, before_relu
+    y_pred = decode_frames_avg_pool(frames)
+    return y_pred
+
+def less_simple_model(X, is_training):
+    frames = encode_frames_conv(X, is_training)
+    y_pred = decode_frames_avg_pool(frames)
+    return y_pred
 
 def resnet_max_pool(X, is_training):
     frames = encode_frames_simple_resnet(X, is_training)
-    y_pred = decode_frames_max_pool(frames)
+    y_pred = decode_frames_avg_pool(frames)
     return y_pred
 
 

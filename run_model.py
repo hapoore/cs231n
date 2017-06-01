@@ -176,12 +176,12 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
             # and (if given) perform a training step
 
             #loss, corr, ret_optimizer = session.run(variables,feed_dict=feed_dict)
-            print('session running')
+            #print('session running')
             if training_now:
                 loss, corr, ret_optimizer, y_pred, class_pred = session.run([mean_loss,correct_prediction,training, predict, predicted_class],feed_dict=feed_dict)
             else:
                 loss, corr, acc, y_pred, class_pred = session.run([mean_loss,correct_prediction,accuracy, predict, predicted_class],feed_dict=feed_dict)
-            print('session done running')
+            #print('session done running')
             #print('y_pred', y_pred)
 #            print('real labels', np_batch_labels)
 
@@ -192,9 +192,9 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
             correct += np.sum(corr)
             
         #     # print every now and then
-        #if training_now and (iter_cnt % print_every) == 0:
-            print("Iteration {0}: with minibatch training loss = {1:.3g} and accuracy of {2:.2g}"\
-                  .format(iter_cnt,loss,np.sum(corr)/float(actual_batch_size)))
+            if (iter_cnt % print_every) == 0:
+                print("Iteration {0}: with minibatch training loss = {1:.3g} and accuracy of {2:.2g}"\
+                      .format(iter_cnt,loss,np.sum(corr)/float(actual_batch_size)))
             iter_cnt += 1
         total_correct = correct/float(len(filenames))
         total_loss = np.sum(losses)/len(filenames)
@@ -233,7 +233,7 @@ mean_img = compute_mean_img(filenames_train, 224, classes, number_to_class, 10)
 X = tf.placeholder(tf.float32, [None, 10, 224, 224, 3])
 y = tf.placeholder(tf.int64, [None])
 is_training = tf.placeholder(tf.bool)
-y_pred = model.resnet_max_pool(X, is_training)
+y_pred = model.less_simple_model(X, is_training)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(1e-4)
@@ -245,10 +245,10 @@ with tf.Session() as sess:
         num_params = sum(map(lambda t: np.prod(tf.shape(t.value()).eval()), params))
 #        print(num_params)
         print('Training')
-        for i in range(5):
+        for i in range(10):
             print('starting Epoch ', i+1)
             run_model(sess,y_pred,mean_loss,filenames_train,classes,
-                      number_to_class,1,64,64,train_step,True, crop_dim=224, mean_img=mean_img)
+                      number_to_class,1,64,5,train_step,True, crop_dim=224, mean_img=mean_img)
             
             print('Validation')
             run_model(sess,y_pred,mean_loss,filenames_val,classes,
