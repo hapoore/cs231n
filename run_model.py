@@ -217,6 +217,7 @@ def compute_mean_img(filenames, crop_dim, classes, number_to_class, num_frames):
         mean_imgs = np.zeros((int(math.ceil(len(filenames)/batch_size)), crop_dim, crop_dim, 3))
         print('computing mean image')
         for i in range(int(math.ceil(len(filenames)/batch_size))):
+            print('batch', i, 'of ', int(math.ceil(len(filenames)/batch_size)))
             np_batch_frames, np_batch_labels, actual_batch_size = (
                 get_batch_frames(filenames, batch_size, np.arange(len(filenames)),
                                  number_to_class, classes, i, num_frames, crop_dim))
@@ -228,11 +229,11 @@ def compute_mean_img(filenames, crop_dim, classes, number_to_class, num_frames):
 
 #def main():
 classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test = read_csv('SVW.csv', 3400, 300)
-mean_img = compute_mean_img(filenames_train, 270, classes, number_to_class, 10)
-X = tf.placeholder(tf.float32, [None, 10, 270, 270, 3])
+mean_img = compute_mean_img(filenames_train, 224, classes, number_to_class, 10)
+X = tf.placeholder(tf.float32, [None, 10, 224, 224, 3])
 y = tf.placeholder(tf.int64, [None])
 is_training = tf.placeholder(tf.bool)
-y_pred, frames, before_relu = model.simple_model(X)
+y_pred = model.resnet_max_pool(X, is_training)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(1e-4)
@@ -247,11 +248,11 @@ with tf.Session() as sess:
         for i in range(5):
             print('starting Epoch ', i+1)
             run_model(sess,y_pred,mean_loss,filenames_train,classes,
-                      number_to_class,1,64,64,train_step,True, mean_img=mean_img)
+                      number_to_class,1,64,64,train_step,True, crop_dim=224, mean_img=mean_img)
             
             print('Validation')
             run_model(sess,y_pred,mean_loss,filenames_val,classes,
-                      number_to_class,1,64, mean_img=mean_img)
+                      number_to_class,1,64, crop_dim=224, mean_img=mean_img)
         
         
 #        session, predict, loss_val, filenames, classes, number_to_class,
