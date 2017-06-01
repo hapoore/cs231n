@@ -121,6 +121,14 @@ def get_batch_frames(filenames, batch_size, train_indices,
 #    print('files read')
     return np_batch_frames, np_batch_labels, actual_batch_size
 
+def print_mistakes(total_videos, mistakes, number_to_class):
+    for sport in total_videos:
+        if sport in mistakes:
+            numerator = mistakes[sport]
+        else:
+            numerator = 0
+        print(number_to_class[sport] + ' accuracy: ' + str(1 - numerator/total_videos[sport]))
+
 def run_model(session, predict, loss_val, filenames, classes, number_to_class,
               epochs=1, batch_size=64, print_every=100,
               training=None, plot_losses=False, crop_dim=270, num_frames=10, mean_img=None):
@@ -128,11 +136,13 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
     predicted_class = tf.argmax(predict,1)
     correct_prediction = tf.equal(predicted_class, y)
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    
     # shuffle indices
     train_indices = np.arange(len(filenames))
     np.random.shuffle(train_indices)
 
+    total_videos = {}
+    mistakes = {}
+    
     training_now = training is not None
     
     # setting up variables we want to compute (and optimizing)
@@ -182,6 +192,17 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
                 loss, corr, ret_optimizer, y_pred, class_pred = session.run([mean_loss,correct_prediction,training, predict, predicted_class],feed_dict=feed_dict)
             else:
                 loss, corr, acc, y_pred, class_pred = session.run([mean_loss,correct_prediction,accuracy, predict, predicted_class],feed_dict=feed_dict)
+                for sport in np_batch_labels:
+                    if sport in total_videos:
+                        total_videos[sport] += 1
+                    else:
+                        total_videos[sport] = 1
+                    
+                for mistake in np_batch_labels[class_pred != np_batch_labels]:
+                    if mistake in mistakes:
+                        mistakes[mistake] += 1
+                    else:
+                        mistakes[mistake] = 1
             print('session done running')
             #print('y_pred', y_pred)
 #            print('real labels', np_batch_labels)
@@ -201,13 +222,15 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
         total_loss = np.sum(losses)/len(filenames)
         print("Epoch {2}, Overall loss = {0:.3g} and accuracy of {1:.3g}"\
               .format(total_loss,total_correct,e+1))
-            # if plot_losses:
+        # if plot_losses:
             #     plt.plot(losses)
             #     plt.grid(True)
             #     plt.title('Epoch {} Loss'.format(e+1))
             #     plt.xlabel('minibatch number')
             #     plt.ylabel('minibatch loss')
             #     plt.show()
+    if not training_now:
+        print_mistakes(total_videos, mistakes, number_to_class)
     return total_loss,total_correct
 
 def compute_mean_img(filenames, crop_dim, classes, number_to_class, num_frames):
@@ -229,30 +252,30 @@ def compute_mean_img(filenames, crop_dim, classes, number_to_class, num_frames):
 
 #def main():
 classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test = read_csv('SVW.csv', 3400, 300)
-mean_img = compute_mean_img(filenames_train, 270, classes, number_to_class, 10)
-X = tf.placeholder(tf.float32, [None, 10, 270, 270, 3])
+mean_img = compute_mean_img(filenames_train, 200, classes, number_to_class, 30)
+X = tf.placeholder(tf.float32, [None, 30, 200, 200, 3])
 y = tf.placeholder(tf.int64, [None])
 is_training = tf.placeholder(tf.bool)
 y_pred, frames, before_relu = conv_model_3d.simple_model(X)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
-optimizer = tf.train.AdamOptimizer(1e-3)
+optimizer = tf.train.AdamOptimizer(1e-4)
 train_step = optimizer.minimize(mean_loss)
 with tf.Session() as sess:
-    with tf.device("/cpu:0"): #"/cpu:0" or "/gpu:0"
+    with tf.device("/gpu:0"): #"/cpu:0" or "/gpu:0"
         sess.run(tf.global_variables_initializer())
         params = tf.trainable_variables()
         num_params = sum(map(lambda t: np.prod(tf.shape(t.value()).eval()), params))
 #        print(num_params)
         print('Training')
-        for i in range(5):
+        for i in range(10):
             print('starting Epoch ', i+1)
             run_model(sess,y_pred,mean_loss,filenames_train,classes,
-                      number_to_class,1,64,64,train_step,True, mean_img=mean_img)
+                      number_to_class,1,64,64,train_step,True, crop_dim=200, num_frames=30,mean_img=mean_img)
             
             print('Validation')
             run_model(sess,y_pred,mean_loss,filenames_val,classes,
-                      number_to_class,1,64, mean_img=mean_img)
+                      number_to_class,1,64, crop_dim=200,mean_img=mean_img, num_frames=30)
         
         
 #        session, predict, loss_val, filenames, classes, number_to_class,
