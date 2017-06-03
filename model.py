@@ -1,6 +1,10 @@
 import numpy as np
 import tensorflow as tf
+import inception_preprocessing
+from inception_resnet_v2 import inception_resnet_v2, inception_resnet_v2_arg_scope
 import keras
+
+slim = tf.contrib.slim
 
 
 """ Uses Pretrained ResNet on each frame, 
@@ -25,6 +29,17 @@ def decode_frames_avg_pool(frames):
     b1 = tf.get_variable("b1", shape=[30], initializer=tf.constant_initializer(0.0))
     y_pred = tf.matmul(avg, W1) + b1
     return y_pred
+
+def encode_inception_resnet(X, is_training):
+    (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
+    flattened = tf.reshape(X, (-1, height, width, n_channels))
+    with slim.arg_scope(inception_resnet_v2_arg_scope()):
+        logits, end_points = inception_resnet_v2(flattened, num_classes = 30, is_training = is_training)
+    out = end_points['PreLogitsFlatten']
+    (_, d) = out.get_shape().as_list()
+    reshaped_out = tf.reshape(out, (-1, n_frames, d))
+    return reshaped_out
+    
 
 def decode_frames_max_pool(frames):
     avg = tf.reduce_max(frames, axis=1)
@@ -63,13 +78,21 @@ def encode_frames_conv(X, is_training):
     a1 = tf.layers.conv2d(flattened, 32, 7, strides=2)
     batchnorm1 = tf.contrib.layers.batch_norm(a1, .9, True, True, 1e-8)
     h1 = tf.nn.relu(batchnorm1)
-    drop1 = tf.layers.dropout(h1, 0.25, training=is_training)
+    drop1 = tf.layers.dropout(h1, 0.4, training=is_training)
     a2 = tf.layers.conv2d(drop1, 32, 3, strides=2)
     batchnorm2 = tf.contrib.layers.batch_norm(a2, .9, True, True, 1e-8)
     h2 = tf.nn.relu(batchnorm2)
-    drop2 = tf.layers.dropout(h2, 0.25, training=is_training)
-    (_, h_out, w_out, c_out) = batchnorm2.get_shape().as_list()
-    reshaped_out = tf.reshape(batchnorm2, (-1, n_frames, h_out*w_out*c_out))
+    drop2 = tf.layers.dropout(h2, 0.4, training=is_training)
+    a3 = tf.layers.conv2d(drop2, 32, 3, strides=2)
+    batchnorm3 = tf.contrib.layers.batch_norm(a3, .9, True, True, 1e-8)
+    h3 = tf.nn.relu(batchnorm3)
+    drop3 = tf.layers.dropout(h3, 0.4, training=is_training)
+    a4 = tf.layers.conv2d(drop3, 32, 3, strides=2)
+    batchnorm4 = tf.contrib.layers.batch_norm(a4, .9, True, True, 1e-8)
+    h4 = tf.nn.relu(batchnorm4)
+    drop4 = tf.layers.dropout(h4, 0.4, training=is_training)
+    (_, h_out, w_out, c_out) = drop4.get_shape().as_list()
+    reshaped_out = tf.reshape(drop4, (-1, n_frames, h_out*w_out*c_out))
     return reshaped_out
 
 def conv_norm(X, in_chans, out_chans, filter_size, stride, scope, is_training):
@@ -128,6 +151,16 @@ def simple_model(X):
 
 def less_simple_model(X, is_training):
     frames = encode_frames_conv(X, is_training)
+    y_pred = decode_frames_avg_pool(frames)
+    return y_pred
+
+def inception_resnet_avg_model(X, is_training):
+    frames = encode_inception_resnet(X, is_training)
+    y_pred = decode_frames_avg_pool(frames)
+    return y_pred
+
+def pretrained_resnet(X, is_training):
+    frames = encode_frames_resnet(X)
     y_pred = decode_frames_avg_pool(frames)
     return y_pred
 
