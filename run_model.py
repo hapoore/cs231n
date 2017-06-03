@@ -174,6 +174,7 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
         # make sure we iterate over the dataset once
         #print(len(filenames))
         #print(int(math.ceil(len(filenames)/batch_size)))
+
         for i in range(int(math.ceil(len(filenames)/batch_size))):
             np_batch_frames, np_batch_labels, actual_batch_size = (
                 get_batch_frames(filenames, batch_size, train_indices,
@@ -190,20 +191,21 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
             #loss, corr, ret_optimizer = session.run(variables,feed_dict=feed_dict)
             #print('session running')
             if training_now:
-                loss, corr, ret_optimizer, y_pred, class_pred = session.run([mean_loss,correct_prediction,training, predict, predicted_class],feed_dict=feed_dict)
+                loss, corr, ret_optimizer, y_pred, class_pred = session.run([mean_loss,correct_prediction,training, predict, predicted_class],feed_dict=feed_dict)   
             else:
                 loss, corr, acc, y_pred, class_pred = session.run([mean_loss,correct_prediction,accuracy, predict, predicted_class],feed_dict=feed_dict)
-                for sport in np_batch_labels:
-                    if sport in total_videos:
-                        total_videos[sport] += 1
-                    else:
-                        total_videos[sport] = 1
-                    
-                for mistake in np_batch_labels[class_pred != np_batch_labels]:
-                    if mistake in mistakes:
-                        mistakes[mistake] += 1
-                    else:
-                        mistakes[mistake] = 1
+            
+            for sport in np_batch_labels:
+                if sport in total_videos:
+                    total_videos[sport] += 1
+                else:
+                    total_videos[sport] = 1
+                
+            for mistake in np_batch_labels[class_pred != np_batch_labels]:
+                if mistake in mistakes:
+                    mistakes[mistake] += 1
+                else:
+                    mistakes[mistake] = 1
 
             #print('session done running')
             #print('y_pred', y_pred)
@@ -212,6 +214,7 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
  #           print('predicted class', class_pred)
             #print(ret_optimizer)
             # aggregate performance stats
+            #print("actual batch size", actual_batch_size)
             losses.append(loss*actual_batch_size)
             correct += np.sum(corr)
             
@@ -263,7 +266,8 @@ y_pred = model.inception_resnet_avg_model(X, is_training)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(2e-4)
-train_step = optimizer.minimize(mean_loss)
+train_step = slim.learning.create_train_op(mean_loss, optimizer)
+#train_step = optimizer.minimize(mean_loss)
 with tf.Session() as sess:
     #with tf.device("/gpu:0"): #"/cpu:0" or "/gpu:0"
     #print(tf.all_variables())
