@@ -174,13 +174,13 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
         # make sure we iterate over the dataset once
         #print(len(filenames))
         #print(int(math.ceil(len(filenames)/batch_size)))
-        if training_now:
-            iters = 100
-        else:
-            iters = 20
+        # if training_now:
+        #     iters = 100
+        # else:
+        #     iters = 20
 
-        # for i in range(int(math.ceil(len(filenames)/batch_size))):
-        for i in range(iters):
+        for i in range(int(math.ceil(len(filenames)/batch_size))):
+        # for i in range(iters):
             np_batch_frames, np_batch_labels, actual_batch_size = (
                 get_batch_frames(filenames, batch_size, train_indices,
                                  number_to_class, classes, i, num_frames, crop_dim, mean_img=mean_img))

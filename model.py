@@ -34,7 +34,7 @@ def encode_inception_resnet(X, is_training):
     (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
     flattened = tf.reshape(X, (-1, height, width, n_channels))
     with slim.arg_scope(inception_resnet_v2_arg_scope()):
-        logits, end_points = inception_resnet_v2(flattened, num_classes = 30, is_training = is_training)
+        logits, end_points = inception_resnet_v2(flattened, num_classes = 30, is_training = True)
     out = end_points['PreLogitsFlatten']
     (_, d) = out.get_shape().as_list()
     reshaped_out = tf.reshape(out, (-1, n_frames, d))
