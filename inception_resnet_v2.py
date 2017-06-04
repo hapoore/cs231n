@@ -238,8 +238,8 @@ def inception_resnet_v2(inputs, num_classes=1001, is_training=True,
                                 scope='AvgPool_1a_8x8')
           net = slim.flatten(net)
 
-          net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
-                             scope='Dropout')
+          # net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
+                             # scope='Dropout')
 
           end_points['PreLogitsFlatten'] = net
           logits = slim.fully_connected(net, num_classes, activation_fn=None,
@@ -272,6 +272,7 @@ def inception_resnet_v2_arg_scope(weight_decay=0.00004,
     batch_norm_params = {
         'decay': batch_norm_decay,
         'epsilon': batch_norm_epsilon,
+        'zero_debias_moving_mean': True,
     }
     # Set activation_fn and parameters for batch_norm.
     with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,

@@ -174,8 +174,13 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
         # make sure we iterate over the dataset once
         #print(len(filenames))
         #print(int(math.ceil(len(filenames)/batch_size)))
+        if training_now:
+            iters = 100
+        else:
+            iters = 20
 
-        for i in range(int(math.ceil(len(filenames)/batch_size))):
+        # for i in range(int(math.ceil(len(filenames)/batch_size))):
+        for i in range(iters):
             np_batch_frames, np_batch_labels, actual_batch_size = (
                 get_batch_frames(filenames, batch_size, train_indices,
                                  number_to_class, classes, i, num_frames, crop_dim, mean_img=mean_img))
@@ -266,7 +271,10 @@ y_pred = model.inception_resnet_avg_model(X, is_training)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(2e-4)
-train_step = slim.learning.create_train_op(mean_loss, optimizer)
+# train_step = slim.learning.create_train_op(mean_loss, optimizer)
+extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+with tf.control_dependencies(extra_update_ops):
+    train_step = optimizer.minimize(mean_loss)
 #train_step = optimizer.minimize(mean_loss)
 with tf.Session() as sess:
     #with tf.device("/gpu:0"): #"/cpu:0" or "/gpu:0"
@@ -278,19 +286,21 @@ with tf.Session() as sess:
     print("Number of parameters:", num_params)
     exclude = ['InceptionResnetV2/Logits', 'InceptionResnetV2/AuxLogits', "beta2_power" , "beta1_power", 'b1', "W1" ]
     variables_to_restore = slim.get_variables_to_restore(exclude = exclude)
-    variables_to_restore = list(set(variables_to_restore) - set(slim.get_variables_by_suffix("Adam")) - set(slim.get_variables_by_suffix("Adam_1")))
+    variables_to_restore = list(set(variables_to_restore) - set(slim.get_variables_by_suffix("Adam")) - set(slim.get_variables_by_suffix("Adam_1"))
+        - set(slim.get_variables_by_suffix("local_step")) - set(slim.get_variables_by_suffix("moving_mean/biased")))
     saver = tf.train.Saver(variables_to_restore)
     saver.restore(sess, './pretrained/inception_resnet_v2_2016_08_30.ckpt')
    
     print('Training')
-    for i in range(15):
+    for i in range(5):
         print('starting Epoch ', i+1)
         run_model(sess,y_pred,mean_loss,filenames_train,classes,
-                  number_to_class,1,7,1,train_step,True, crop_dim=224, mean_img=mean_img)
+                  number_to_class,1,4,1, training=train_step, crop_dim=224, mean_img=mean_img)
         
         print('Validation')
         run_model(sess,y_pred,mean_loss,filenames_val,classes,
-                  number_to_class,1,7, 1, crop_dim=224, mean_img=mean_img)
+                  number_to_class,1,4, 1, crop_dim=224, mean_img=mean_img)
+
         
         
 #        session, predict, loss_val, filenames, classes, number_to_class,
