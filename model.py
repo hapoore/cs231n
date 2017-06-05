@@ -22,12 +22,13 @@ def encode_frames_resnet(X):
 """ Simple decoder that just does average pool across all frames
     and then uses fully connected layer to get predictions
 """
-def decode_frames_avg_pool(frames):
+def decode_frames_avg_pool(frames, is_training):
     avg = tf.reduce_mean(frames, axis=1)
+    drop = tf.layers.dropout(avg, 0.2, training=is_training)
     W1 = tf.get_variable("W1", shape=[avg.get_shape().as_list()[1], 30],
         initializer=tf.contrib.layers.xavier_initializer())
     b1 = tf.get_variable("b1", shape=[30], initializer=tf.constant_initializer(0.0))
-    y_pred = tf.matmul(avg, W1) + b1
+    y_pred = tf.matmul(drop, W1) + b1
     return y_pred
 
 def encode_inception_resnet(X, is_training):
@@ -156,7 +157,7 @@ def less_simple_model(X, is_training):
 
 def inception_resnet_avg_model(X, is_training):
     frames = encode_inception_resnet(X, is_training)
-    y_pred = decode_frames_avg_pool(frames)
+    y_pred = decode_frames_avg_pool(frames, is_training)
     return y_pred
 
 def pretrained_resnet(X, is_training):

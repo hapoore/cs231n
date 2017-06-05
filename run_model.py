@@ -283,8 +283,10 @@ with tf.Session() as sess:
     # params = tf.trainable_variables()
     # num_params = sum(map(lambda t: np.prod(tf.shape(t.value()).eval()), params))
     num_params = np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])
+    print("trainable variables")
+    print(tf.trainable_variables())
     print("Number of parameters:", num_params)
-    exclude = ['InceptionResnetV2/Logits', 'InceptionResnetV2/AuxLogits', "beta2_power" , "beta1_power", 'b1', "W1" ]
+    exclude = ['InceptionResnetV2/Logits', 'InceptionResnetV2/AuxLogits', "beta2_power" , "beta1_power", 'b1', "W1"]
     variables_to_restore = slim.get_variables_to_restore(exclude = exclude)
     variables_to_restore = list(set(variables_to_restore) - set(slim.get_variables_by_suffix("Adam")) - set(slim.get_variables_by_suffix("Adam_1"))
         - set(slim.get_variables_by_suffix("local_step")) - set(slim.get_variables_by_suffix("moving_mean/biased")))
@@ -292,14 +294,14 @@ with tf.Session() as sess:
     saver.restore(sess, './pretrained/inception_resnet_v2_2016_08_30.ckpt')
    
     print('Training')
-    for i in range(5):
+    for i in range(15):
         print('starting Epoch ', i+1)
         run_model(sess,y_pred,mean_loss,filenames_train,classes,
-                  number_to_class,1,4,1, training=train_step, crop_dim=224, mean_img=mean_img)
+                  number_to_class,1,4,100, training=train_step, crop_dim=224, mean_img=mean_img)
         
         print('Validation')
         run_model(sess,y_pred,mean_loss,filenames_val,classes,
-                  number_to_class,1,4, 1, crop_dim=224, mean_img=mean_img)
+                  number_to_class,1,4, 100, crop_dim=224, mean_img=mean_img)
 
         
         
