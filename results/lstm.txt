@@ -1,0 +1,10 @@
+{'archery': 0, 'golf': 12, 'hurdling': 1, 'skiing': 3, 'baseball': 13, 'diving': 4, 'rowing': 5, 'wrestling': 15, 'volleyball': 6, 'longjump': 16, 'gymnastics': 17, 'polevault': 18, 'bmx': 7, 'bowling': 19, 'soccer': 20, 'basketball': 22, 'highjump': 8, 'discusthrow': 23, 'javelin': 28, 'tennis': 24, 'shotput': 2, 'football': 9, 'boxing': 25, 'skating': 27, 'cheerleading': 10, 'weight': 21, 'swimming': 14, 'hammerthrow': 11, 'hockey': 29, 'running': 26}
+Number of parameters: 56765898
+Training
+starting Epoch  1
+Iteration 0: with minibatch training loss = 3.4 and accuracy of 0.5
+Iteration 100: with minibatch training loss = 3.4 and accuracy of 0
+Iteration 200: with minibatch training loss = 3.4 and accuracy of 0
+Iteration 300: with minibatch training loss = 3.4 and accuracy of 0
+Iteration 400: with minibatch training loss = 3.39 and accuracy of 0
+Iteration 500: with minibatch training loss = 3.4 and accuracy of 0

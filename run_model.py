@@ -45,6 +45,58 @@ def read_csv(filename, num_train, num_val):
     filenames_val = filenames[num_train:num_train+num_val]
     filenames_test = filenames[num_train + num_val:]
     return classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test
+
+def get_batch_frames_const_int(filenames, batch_size, train_indices,
+                     number_to_class, classes, batch_num, max_frames=16, crop_dim=224, mean_img=None):
+    # generate indices for the batch
+#    print('starting read files')
+    start_idx = (batch_num*batch_size)%len(filenames)
+    idx = train_indices[start_idx:start_idx+batch_size]
+    #print(idx)
+    #per-batch vars
+    batch_frames = []
+    batch_labels = []
+    batch_masks = []
+    
+    for j in idx:
+
+        directory = ('../output_frames/' + number_to_class[classes[filenames[j]]]
+                    + '/' + filenames[j].split('.')[0])
+        total_frames = len([name for name in os.listdir(directory) if os.path.isfile(name)])
+        # interval = int(math.floor(total_frames/num_frames))
+        frames = []
+        mask = []
+        for i in range(max_frames):
+            frame_number = i * 5
+            if frame_number < total_frames:
+                frame_path = directory + '/frame' + str(frame_number+1) + '.jpg'
+                frame = imread(frame_path)
+                height = frame.shape[0]
+                width = frame.shape[1]
+                vert_indent = int(math.ceil((height - crop_dim)/2))
+                horiz_indent = int(math.ceil((width - crop_dim)/2))
+                frame = frame[vert_indent:vert_indent+crop_dim, 
+                              horiz_indent:horiz_indent+crop_dim, :]  
+                frame = frame.astype('float32') / 256   
+                frames.append(frame)
+                mask.append(1)
+            else:
+                frames.append(np.zeros((224,224,3)))
+                mask.append(0)
+        batch_masks.append(mask)
+        batch_labels.append(classes[filenames[j]])
+        batch_frames.append(frames)
+            
+    np_batch_frames = np.asarray(batch_frames)
+    if mean_img is not None:
+        np_batch_frames -= mean_img
+    np_batch_labels = np.asarray(batch_labels)
+    np_batch_masks = np.asarray(batch_masks)
+    actual_batch_size = len(batch_frames)
+    # print(np_batch_frames.shape)
+    # print(np_batch_labels)
+#    print('files read')
+    return np_batch_frames, np_batch_labels, np_batch_masks, actual_batch_size
     
 def get_batch_frames(filenames, batch_size, train_indices,
                      number_to_class, classes, batch_num, num_frames, crop_dim, mean_img=None):
@@ -77,40 +129,6 @@ def get_batch_frames(filenames, batch_size, train_indices,
             frames.append(frame)
         batch_labels.append(classes[filenames[j]])
         batch_frames.append(frames)
-        
-#        filepath = ('../SVW/Videos/' + number_to_class[classes[filenames[j]]]
-#                    + '/' + filenames[j])
-#        cap = cv2.VideoCapture(filepath)
-#        ret, frame = cap.read()
-#        #print(filepath)
-#        frame_count = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
-#        #print(frame_count)
-#        interval = int(math.floor(frame_count/num_frames))
-#        frames = []
-#        success = True
-#        for frame_number in range(num_frames):
-#            cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, interval*frame_number)
-            # Capture frame-by-frame
-#            ret, frame = cap.read()
-#            if ret:
-#                # Crop the current frame
-#                height = frame.shape[0]
-#                width = frame.shape[1]
-#                vert_indent = int(math.ceil((height - crop_dim)/2))
-#                horiz_indent = int(math.ceil((width - crop_dim)/2))
-#                frame = frame[vert_indent:vert_indent+crop_dim, 
-#                              horiz_indent:horiz_indent+crop_dim, :]  
-#                frame = frame.astype('float32') / 256   
-#                frames.append(frame)
-#            else:
-#                print("Problem reading frame from file " + filenames[j])
-#                success = False
-                
-                # When everything done, release the capture
-#        cap.release()
-#        if success:
-#batch_labels.append(classes[filenames[j]])
-#batch_frames.append(frames)
             
     np_batch_frames = np.asarray(batch_frames)
     if mean_img is not None:
@@ -181,14 +199,15 @@ def run_model(session, predict, loss_val, filenames, classes, number_to_class,
 
         for i in range(int(math.ceil(len(filenames)/batch_size))):
         # for i in range(iters):
-            np_batch_frames, np_batch_labels, actual_batch_size = (
-                get_batch_frames(filenames, batch_size, train_indices,
-                                 number_to_class, classes, i, num_frames, crop_dim, mean_img=mean_img))
+            np_batch_frames, np_batch_labels, np_batch_masks, actual_batch_size = (
+                get_batch_frames_const_int(filenames, batch_size, train_indices,
+                                 number_to_class, classes, i, max_frames=16, crop_dim=crop_dim, mean_img=mean_img))
 
             # create a feed dictionary for this batch
             feed_dict = {X: np_batch_frames,
                          y: np_batch_labels,
-                         is_training: training_now }
+                         is_training: training_now,
+                         masks: np_batch_masks}
 
             # have tensorflow compute loss and correct predictions
             # and (if given) perform a training step
@@ -263,11 +282,14 @@ def compute_mean_img(filenames, crop_dim, classes, number_to_class, num_frames):
 
 #def main():
 classes, class_to_number, number_to_class, filenames_train, filenames_val, filenames_test = read_csv('SVW.csv', 3400, 300)
+# get_batch_frames_const_int(filenames_train, 4, [0,1,2,3],
+#                      number_to_class, classes, 0, max_frames=16, crop_dim=224, mean_img=None)
 mean_img = compute_mean_img(filenames_train, 224, classes, number_to_class, 10)
-X = tf.placeholder(tf.float32, [None, 10, 224, 224, 3])
+X = tf.placeholder(tf.float32, [None, 16, 224, 224, 3])
 y = tf.placeholder(tf.int64, [None])
+masks = tf.placeholder(tf.int64, [None, 16])
 is_training = tf.placeholder(tf.bool)
-y_pred = model.inception_resnet_avg_model(X, is_training)
+y_pred = model.inception_resnet_lstm(X, masks, is_training)
 cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y)
 mean_loss = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(2e-4)
@@ -283,10 +305,11 @@ with tf.Session() as sess:
     # params = tf.trainable_variables()
     # num_params = sum(map(lambda t: np.prod(tf.shape(t.value()).eval()), params))
     num_params = np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])
-    print("trainable variables")
-    print(tf.trainable_variables())
+    # print("trainable variables")
+    # print(tf.trainable_variables())
     print("Number of parameters:", num_params)
-    exclude = ['InceptionResnetV2/Logits', 'InceptionResnetV2/AuxLogits', "beta2_power" , "beta1_power", 'b1', "W1"]
+    exclude = ['InceptionResnetV2/Logits', 'InceptionResnetV2/AuxLogits', "beta2_power" , "beta1_power", 
+        'b1', "W1", "rnn/lstm_cell/biases", "rnn/lstm_cell/weights"]
     variables_to_restore = slim.get_variables_to_restore(exclude = exclude)
     variables_to_restore = list(set(variables_to_restore) - set(slim.get_variables_by_suffix("Adam")) - set(slim.get_variables_by_suffix("Adam_1"))
         - set(slim.get_variables_by_suffix("local_step")) - set(slim.get_variables_by_suffix("moving_mean/biased")))
@@ -297,11 +320,11 @@ with tf.Session() as sess:
     for i in range(15):
         print('starting Epoch ', i+1)
         run_model(sess,y_pred,mean_loss,filenames_train,classes,
-                  number_to_class,1,4,100, training=train_step, crop_dim=224, mean_img=mean_img)
+                  number_to_class,1,2,100, training=train_step, crop_dim=224, mean_img=mean_img)
         
         print('Validation')
         run_model(sess,y_pred,mean_loss,filenames_val,classes,
-                  number_to_class,1,4, 100, crop_dim=224, mean_img=mean_img)
+                  number_to_class,1,2, 100, crop_dim=224, mean_img=mean_img)
 
         
         

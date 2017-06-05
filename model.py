@@ -31,6 +31,22 @@ def decode_frames_avg_pool(frames, is_training):
     y_pred = tf.matmul(drop, W1) + b1
     return y_pred
 
+def decode_frames_lstm(frames, masks, is_training):
+    seqlen = tf.reduce_sum(masks, axis=1)
+    cell = tf.contrib.rnn.LSTMCell(200)
+    cell = tf.contrib.rnn.DropoutWrapper(cell, 0.8, 0.8)
+    outputs, final_state = tf.nn.dynamic_rnn(
+        cell=cell, dtype=tf.float32, inputs=frames, sequence_length=seqlen)
+    lstmoutput = final_state[1]
+    W1 = tf.get_variable("W1", shape=[200, 30],
+        initializer=tf.contrib.layers.xavier_initializer())
+    b1 = tf.get_variable("b1", shape=[30], initializer=tf.constant_initializer(0.0))
+    y_pred = tf.matmul(lstmoutput, W1) + b1
+    return y_pred
+
+
+
+
 def encode_inception_resnet(X, is_training):
     (_, n_frames, height, width, n_channels) = X.get_shape().as_list()
     flattened = tf.reshape(X, (-1, height, width, n_channels))
@@ -158,6 +174,11 @@ def less_simple_model(X, is_training):
 def inception_resnet_avg_model(X, is_training):
     frames = encode_inception_resnet(X, is_training)
     y_pred = decode_frames_avg_pool(frames, is_training)
+    return y_pred
+
+def inception_resnet_lstm(X, masks, is_training):
+    frames = encode_inception_resnet(X, is_training)
+    y_pred = decode_frames_lstm(frames, masks, is_training)
     return y_pred
 
 def pretrained_resnet(X, is_training):
