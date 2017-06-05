@@ -62,7 +62,7 @@ def get_batch_frames_const_int(filenames, batch_size, train_indices,
 
         directory = ('../output_frames/' + number_to_class[classes[filenames[j]]]
                     + '/' + filenames[j].split('.')[0])
-        total_frames = len([name for name in os.listdir(directory) if os.path.isfile(name)])
+        total_frames = len([name for name in os.listdir(directory)])
         # interval = int(math.floor(total_frames/num_frames))
         frames = []
         mask = []
@@ -113,7 +113,7 @@ def get_batch_frames(filenames, batch_size, train_indices,
 
         directory = ('../output_frames/' + number_to_class[classes[filenames[j]]]
                     + '/' + filenames[j].split('.')[0])
-        total_frames = len([name for name in os.listdir(directory) if os.path.isfile(name)])
+        total_frames = len([name for name in os.listdir(directory)])
         interval = int(math.floor(total_frames/num_frames))
         frames = []
         for frame_number in range(num_frames):
